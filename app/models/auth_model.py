@@ -22,8 +22,6 @@ def login_user(username_or_email, password):
 
     try:
         with conn.cursor() as cursor:
-
-            # Bisa login pakai username atau email
             cursor.execute(
                 "SELECT * FROM users WHERE username=%s OR email=%s",
                 (username_or_email, username_or_email)
@@ -33,13 +31,10 @@ def login_user(username_or_email, password):
             if not user:
                 return False, "User tidak ditemukan"
 
-            # Cek password hash
             if not check_password_hash(user["password"], password):
                 return False, "Password salah"
 
-            # 🔥 NORMALISASI ROLE (WAJIB)
             user["role"] = user["role"].lower()
-
             return True, user
 
     except Exception as e:

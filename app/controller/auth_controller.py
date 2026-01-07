@@ -1,45 +1,50 @@
 from flask import request, jsonify
-from app.models.auth_model import login_user
+from werkzeug.security import check_password_hash, generate_password_hash
+from app.models.user_model import get_user_by_username_or_email, create_user
 from app.utils.jwt_utils import generate_jwt
 
+# ============================
+# REGISTER
+# ============================
+def register():
+    data = request.get_json()
+
+    username = data.get("username")
+    email = data.get("email")
+    password_raw = data.get("password")
+    role = data.get("role", "user")
+
+    password_hashed = generate_password_hash(password_raw)
+    create_user(username, email, password_hashed, role)
+
+    return jsonify({
+        "success": True,
+        "message": "User berhasil dibuat"
+    })
+
+
+# ============================
+# LOGIN (MOBILE & WEB)
+# ============================
 def login():
     data = request.get_json()
 
-    if not data:
-        return jsonify({
-            "success": False,
-            "message": "Request body tidak boleh kosong"
-        }), 400
-
-    username = data.get("username")
+    username_or_email = data.get("username_or_email")
     password = data.get("password")
 
-    if not username or not password:
-        return jsonify({
-            "success": False,
-            "message": "Username dan password wajib diisi"
-        }), 400
+    user = get_user_by_username_or_email(username_or_email)
 
-    success, result = login_user(username, password)
+    if not user:
+        return jsonify({"success": False, "message": "User tidak ditemukan"}), 400
 
-    if not success:
-        return jsonify({
-            "success": False,
-            "message": result
-        }), 401
+    if not check_password_hash(user["password"], password):
+        return jsonify({"success": False, "message": "Password salah"}), 400
 
-    role_normalized = result["role"].lower()
-    token = generate_jwt(result["id"], role_normalized)
+    token = generate_jwt(user["id"], user["role"])
 
     return jsonify({
         "success": True,
         "message": "Login berhasil",
-        "data": {
-            "user": {
-                "id": result["id"],
-                "username": result["username"],
-                "role": role_normalized
-            },
-            "token": token
-        }
-    }), 200
+        "token": token,
+        "role": user["role"]
+    })

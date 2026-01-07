@@ -1,44 +1,18 @@
-import pymysql
-from werkzeug.security import check_password_hash
+from app.db import get_db_connection
 
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "",
-    "database": "project_baru"
-}
+def get_user_for_login(email_or_username):
+    db = get_db_connection()
+    cursor = db.cursor(dictionary=True)
 
-def get_db_connection():
-    return pymysql.connect(
-        host=DB_CONFIG["host"],
-        user=DB_CONFIG["user"],
-        password=DB_CONFIG["password"],
-        database=DB_CONFIG["database"],
-        cursorclass=pymysql.cursors.DictCursor
-    )
+    sql = """
+        SELECT * FROM users 
+        WHERE email = %s OR username = %s
+        LIMIT 1
+    """
 
-def login_user(username_or_email, password):
-    conn = get_db_connection()
+    cursor.execute(sql, (email_or_username, email_or_username))
+    user = cursor.fetchone()
 
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                "SELECT * FROM users WHERE username=%s OR email=%s",
-                (username_or_email, username_or_email)
-            )
-            user = cursor.fetchone()
-
-            if not user:
-                return False, "User tidak ditemukan"
-
-            if not check_password_hash(user["password"], password):
-                return False, "Password salah"
-
-            user["role"] = user["role"].lower()
-            return True, user
-
-    except Exception as e:
-        return False, str(e)
-
-    finally:
-        conn.close()
+    cursor.close()
+    db.close()
+    return user
